@@ -102,7 +102,7 @@ function CoachTeams() {
   return (
     <>
       <PageHeader title="Tim saya" />
-      {q.isLoading ? <LoadingList /> : !current ? <Empty title="Belum ada tim yang ditugaskan" /> : (
+      {q.isLoading ? <LoadingList /> : q.error ? <ErrorBox error={q.error} /> : !current ? <Empty title="Belum ada tim yang ditugaskan" /> : (
         <>
           {teams.length > 1 && (
             <div className="mb-4 flex gap-2 overflow-x-auto">{teams.map((t) => <Button key={t.id} size="sm" variant={t.id === current.id ? "default" : "outline"} onClick={() => setTeamId(t.id)}>{t.name}</Button>)}</div>
@@ -118,7 +118,7 @@ function CoachTeams() {
 function Roster({ teamId }: { teamId: string }) {
   const q = useQuery({ queryKey: ["roster", teamId], queryFn: () => fetchRoster(teamId) });
   return (
-    <Section title={`Roster (${q.data?.length ?? 0})`}>
+    <Section title={`Pemain tim (${q.data?.length ?? 0})`}>
       {q.isLoading ? <LoadingList /> : q.error ? <ErrorBox error={q.error} /> : !q.data?.length ? <Empty title="Belum ada pemain" hint="Pemain muncul setelah pendaftaran disetujui SSB." /> : (
         <Panel className="p-0">
           {q.data.map((m) => m.player_profiles && (

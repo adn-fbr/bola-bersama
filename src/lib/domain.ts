@@ -11,6 +11,26 @@ export const roleLabel: Record<AppRole, string> = {
   association: "Asosiasi",
 };
 
+export const enrollmentStatus: Record<
+  "pending" | "needs_info" | "approved" | "rejected",
+  { label: string; tone: "success" | "warning" | "danger" | "info" }
+> = {
+  pending: { label: "Menunggu Persetujuan", tone: "warning" },
+  needs_info: { label: "Perlu Dilengkapi", tone: "info" },
+  approved: { label: "Disetujui", tone: "success" },
+  rejected: { label: "Ditolak", tone: "danger" },
+};
+
+export const verificationStatus: Record<
+  "unverified" | "pending" | "verified" | "rejected",
+  { label: string; tone: "success" | "warning" | "danger" | "neutral" }
+> = {
+  unverified: { label: "Belum Diverifikasi", tone: "neutral" },
+  pending: { label: "Dalam Review", tone: "warning" },
+  verified: { label: "Terverifikasi", tone: "success" },
+  rejected: { label: "Ditolak", tone: "danger" },
+};
+
 /** Usia pada tanggal acuan kompetisi (bukan usia hari ini). */
 export function ageOnDate(birth: string | Date, reference: string | Date): number {
   const b = new Date(birth);

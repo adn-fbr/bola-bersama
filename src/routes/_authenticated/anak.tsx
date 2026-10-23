@@ -4,14 +4,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { fetchChildren, fetchSsbs, rpc } from "@/lib/api";
 import { useApp } from "@/lib/app-context";
-import { ageOnDate, fmtDate } from "@/lib/domain";
+import { ageOnDate, enrollmentStatus, fmtDate, verificationStatus } from "@/lib/domain";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Crest, Empty, ErrorBox, LoadingList, PageHeader, Panel, StatusBadge, enrollmentStatus, verificationStatus } from "@/components/kit";
+import { Crest, Empty, ErrorBox, LoadingList, PageHeader, Panel, StatusBadge } from "@/components/kit";
 import { Plus } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/anak")({
@@ -24,6 +24,7 @@ function AnakPage() {
   const q = useQuery({ queryKey: ["children"], queryFn: fetchChildren });
   const [adding, setAdding] = useState(false);
   const [enrollFor, setEnrollFor] = useState<{ id: string; name: string } | null>(null);
+  const [responding, setResponding] = useState<{ id: string; name: string; reason: string } | null>(null);
   if (active?.role !== "parent") return <Empty title="Halaman khusus Orang Tua/Wali" />;
   return (
     <>
@@ -60,7 +61,18 @@ function AnakPage() {
                           <p className="text-xs text-muted-foreground">Diajukan {fmtDate(r.created_at)}{r.decided_at ? ` · diputuskan ${fmtDate(r.decided_at)}` : ""}</p>
                           {r.decision_note && r.status !== "approved" && <p className="text-xs text-muted-foreground">Catatan: {r.decision_note}</p>}
                         </div>
-                        <StatusBadge tone={enrollmentStatus[r.status].tone}>{enrollmentStatus[r.status].label}</StatusBadge>
+                        <div className="flex items-center gap-2">
+                          <StatusBadge tone={enrollmentStatus[r.status].tone}>{enrollmentStatus[r.status].label}</StatusBadge>
+                          {r.status === "needs_info" && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setResponding({ id: r.id, name: p.full_name, reason: r.decision_note ?? "" })}
+                            >
+                              Lengkapi
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -73,6 +85,7 @@ function AnakPage() {
       )}
       <AddChildSheet open={adding} onOpenChange={setAdding} />
       <EnrollSheet target={enrollFor} onClose={() => setEnrollFor(null)} />
+      <RespondEnrollmentSheet key={responding?.id ?? "none"} target={responding} onClose={() => setResponding(null)} />
     </>
   );
 }
@@ -147,16 +160,60 @@ function EnrollSheet({ target, onClose }: { target: { id: string; name: string }
       <SheetContent side="bottom" className="max-h-[92vh] overflow-y-auto rounded-t-2xl">
         <SheetHeader><SheetTitle>Daftarkan {target?.name}</SheetTitle></SheetHeader>
         <div className="space-y-3 px-4 pb-6">
-          {ssbs.isLoading ? <LoadingList rows={2} /> : ssbs.data?.map((s) => (
-            <button key={s.id} onClick={() => setOrg(s.id)} className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left ${org === s.id ? "border-primary bg-accent" : "bg-card"}`}>
-              <Crest name={s.name} />
-              <div className="flex-1"><p className="font-semibold">{s.name}</p><p className="text-xs text-muted-foreground">{s.city}</p></div>
-              <StatusBadge tone={verificationStatus[s.verification].tone}>{verificationStatus[s.verification].label}</StatusBadge>
-            </button>
-          ))}
+          {ssbs.isLoading ? <LoadingList rows={2} /> : ssbs.error ? <ErrorBox error={ssbs.error} /> : !ssbs.data?.length ? (
+            <Empty title="Belum ada SSB yang tersedia" hint="Coba lagi nanti atau hubungi pengelola." />
+          ) : ssbs.data.map((s) => (
+              <button key={s.id} onClick={() => setOrg(s.id)} className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left ${org === s.id ? "border-primary bg-accent" : "bg-card"}`}>
+                <Crest name={s.name} />
+                <div className="flex-1"><p className="font-semibold">{s.name}</p><p className="text-xs text-muted-foreground">{s.city}</p></div>
+                <StatusBadge tone={verificationStatus[s.verification].tone}>{verificationStatus[s.verification].label}</StatusBadge>
+              </button>
+            ))}
           <div className="space-y-1.5"><Label htmlFor="en">Catatan untuk SSB (opsional)</Label><Textarea id="en" value={note} onChange={(e) => setNote(e.target.value)} placeholder="mis. Bisa latihan sore hari" /></div>
           <p className="text-xs text-muted-foreground">SSB hanya melihat nama, tanggal lahir, dan posisi anak.</p>
           <Button className="h-12 w-full" disabled={!org || m.isPending} onClick={() => m.mutate()}>Kirim pendaftaran</Button>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+function RespondEnrollmentSheet({
+  target,
+  onClose,
+}: {
+  target: { id: string; name: string; reason: string } | null;
+  onClose: () => void;
+}) {
+  const qc = useQueryClient();
+  const [note, setNote] = useState("");
+  const m = useMutation({
+    mutationFn: () => rpc("respond_enrollment", { _req: target!.id, _note: note }),
+    onSuccess: () => {
+      toast.success("Informasi tambahan dikirim ke SSB.");
+      qc.invalidateQueries({ queryKey: ["children"] });
+      setNote("");
+      onClose();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+  return (
+    <Sheet open={!!target} onOpenChange={(v) => !v && onClose()}>
+      <SheetContent side="bottom" className="max-h-[92vh] overflow-y-auto rounded-t-2xl">
+        <SheetHeader><SheetTitle>Lengkapi pendaftaran {target?.name}</SheetTitle></SheetHeader>
+        <div className="space-y-4 px-4 pb-6">
+          {target?.reason && <Panel className="text-sm"><p className="font-semibold">Permintaan dari SSB</p><p className="mt-1">{target.reason}</p></Panel>}
+          <div className="space-y-1.5">
+            <Label htmlFor="en-response">Informasi tambahan</Label>
+            <Textarea id="en-response" value={note} onChange={(e) => setNote(e.target.value)} maxLength={2000} />
+            <p className="text-xs text-muted-foreground">Jawaban Anda akan ditambahkan ke catatan pendaftaran dan ditinjau kembali oleh SSB.</p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" className="h-12 flex-1" onClick={onClose}>Batal</Button>
+            <Button className="h-12 flex-1" disabled={note.trim().length < 2 || m.isPending} onClick={() => m.mutate()}>
+              Kirim jawaban
+            </Button>
+          </div>
         </div>
       </SheetContent>
     </Sheet>

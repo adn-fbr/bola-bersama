@@ -4,9 +4,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { fetchOrgs, rpc } from "@/lib/api";
 import { useApp } from "@/lib/app-context";
+import { verificationStatus } from "@/lib/domain";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Crest, Empty, ErrorBox, LoadingList, PageHeader, Panel, Section, StatusBadge, verificationStatus } from "@/components/kit";
+import { Crest, Empty, ErrorBox, LoadingList, PageHeader, Panel, Section, StatusBadge } from "@/components/kit";
 
 export const Route = createFileRoute("/_authenticated/verifikasi")({
   head: () => ({ meta: [{ title: "Verifikasi Organisasi — BOLAID" }, { name: "description", content: "Antrean verifikasi SSB." }] }),

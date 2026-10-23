@@ -5,12 +5,13 @@ import { useApp } from "@/lib/app-context";
 import {
   fetchChildren, fetchCoachTeams, fetchOrgRequests, fetchOrgTeams, fetchOrgs, fetchTrainings, rpc,
 } from "@/lib/api";
-import { ageOnDate, computeStandings, fmtDate, fmtDateTime, roleLabel } from "@/lib/domain";
+import {
+  ageOnDate, computeStandings, enrollmentStatus, fmtDate, fmtDateTime, verificationStatus,
+} from "@/lib/domain";
 import { demoApplications, demoCompetitions, demoMatches } from "@/lib/demo-data";
 import { Button } from "@/components/ui/button";
 import {
   Crest, DevDataNotice, Empty, ErrorBox, LoadingList, PageHeader, Panel, Section, Stat, StatusBadge,
-  enrollmentStatus, verificationStatus,
 } from "./kit";
 import { CalendarDays, ChevronRight, MapPin, Plus, Star } from "lucide-react";
 
@@ -268,5 +269,3 @@ export function AssociationHome() {
     </>
   );
 }
-
-export { roleLabel, fmtDate };

@@ -58,7 +58,7 @@ function Page() {
       </Section>
 
       <Section title="Organisasi demo (pengembangan)">
-        <p className="mb-2 text-xs text-muted-foreground">Hanya untuk uji coba: klaim peran pengurus di organisasi fiktif. Di produksi, peran diberikan lewat undangan dan verifikasi.</p>
+        <p className="mb-2 text-xs text-muted-foreground">Hanya akun uji yang diizinkan server dapat mencoba peran organisasi fiktif. Di produksi, peran diberikan lewat undangan dan verifikasi.</p>
         <div className="space-y-2">
           {demo.data?.map((o) => {
             const has = contexts.some((c) => c.orgId === o.id && c.role === roleFor[o.kind]);

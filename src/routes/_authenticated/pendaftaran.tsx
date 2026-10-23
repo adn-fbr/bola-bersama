@@ -4,14 +4,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { fetchOrgRequests, fetchOrgTeams, rpc } from "@/lib/api";
 import { useApp } from "@/lib/app-context";
-import { ageOnDate, fmtDate } from "@/lib/domain";
+import { ageOnDate, enrollmentStatus, fmtDate } from "@/lib/domain";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Empty, ErrorBox, LoadingList, PageHeader, Panel, StatusBadge, enrollmentStatus } from "@/components/kit";
+import { Empty, ErrorBox, LoadingList, PageHeader, Panel, StatusBadge } from "@/components/kit";
 
 export const Route = createFileRoute("/_authenticated/pendaftaran")({
   head: () => ({ meta: [{ title: "Review Pendaftaran — BOLAID" }, { name: "description", content: "Review permintaan pendaftaran pemain." }] }),
@@ -58,7 +58,7 @@ function Page() {
 
 function Decide({ req, orgId, onClose }: { req: Req | null; orgId: string; onClose: () => void }) {
   const qc = useQueryClient();
-  const teams = useQuery({ queryKey: ["orgTeams", orgId], queryFn: () => fetchOrgTeams(orgId) });
+  const teams = useQuery({ queryKey: ["orgTeams", orgId], queryFn: () => fetchOrgTeams(orgId), enabled: !!req });
   const [team, setTeam] = useState<string>("");
   const [note, setNote] = useState("");
   const m = useMutation({
@@ -83,15 +83,17 @@ function Decide({ req, orgId, onClose }: { req: Req | null; orgId: string; onClo
               {req.note && <p className="mt-2 text-muted-foreground">Catatan wali: “{req.note}”</p>}
               <p className="mt-2 text-xs text-muted-foreground">Kontak dan dokumen wali tidak ditampilkan di sini.</p>
             </Panel>
-            <div className="space-y-1.5">
-              <Label>Tempatkan di tim</Label>
-              <Select value={team} onValueChange={setTeam}>
-                <SelectTrigger className="h-12"><SelectValue placeholder={teams.data?.length ? "Pilih tim" : "Buat tim dulu di menu Tim"} /></SelectTrigger>
-                <SelectContent>{teams.data?.map((t) => <SelectItem key={t.id} value={t.id}>{t.name} ({t.age_group})</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
+            {teams.isLoading ? <LoadingList rows={1} /> : teams.error ? <ErrorBox error={teams.error} /> : (
+              <div className="space-y-1.5">
+                <Label>Tempatkan di tim</Label>
+                <Select value={team} onValueChange={setTeam}>
+                  <SelectTrigger className="h-12"><SelectValue placeholder={teams.data?.length ? "Pilih tim" : "Buat tim dulu di menu Tim"} /></SelectTrigger>
+                  <SelectContent>{teams.data?.map((t) => <SelectItem key={t.id} value={t.id}>{t.name} ({t.age_group})</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-1.5"><Label htmlFor="dn">Catatan / alasan</Label><Textarea id="dn" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Wajib bila menolak atau meminta kelengkapan" /></div>
-            <Button className="h-12 w-full" disabled={!team || m.isPending} onClick={() => m.mutate("approved")}>Setujui & masukkan ke tim</Button>
+            <Button className="h-12 w-full" disabled={!team || teams.isLoading || !!teams.error || m.isPending} onClick={() => m.mutate("approved")}>Setujui & masukkan ke tim</Button>
             <div className="flex gap-2">
               <Button variant="outline" className="h-12 flex-1" disabled={!note.trim() || m.isPending} onClick={() => m.mutate("needs_info")}>Minta kelengkapan</Button>
               <Button variant="destructive" className="h-12 flex-1" disabled={!note.trim() || m.isPending} onClick={() => { if (confirm("Tolak pendaftaran ini? Keputusan tidak bisa dibatalkan.")) m.mutate("rejected"); }}>Tolak</Button>

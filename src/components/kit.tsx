@@ -22,19 +22,6 @@ export function StatusBadge({ tone, children }: VariantProps<typeof badge> & { c
   return <span className={badge({ tone })}>{children}</span>;
 }
 
-export const enrollmentStatus: Record<"pending" | "needs_info" | "approved" | "rejected", { label: string; tone: "success" | "warning" | "danger" | "info" }> = {
-  pending: { label: "Menunggu Persetujuan", tone: "warning" },
-  needs_info: { label: "Perlu Dilengkapi", tone: "info" },
-  approved: { label: "Aktif", tone: "success" },
-  rejected: { label: "Ditolak", tone: "danger" },
-};
-export const verificationStatus: Record<"unverified" | "pending" | "verified" | "rejected", { label: string; tone: "success" | "warning" | "danger" | "neutral" }> = {
-  unverified: { label: "Belum Diverifikasi", tone: "neutral" },
-  pending: { label: "Dalam Review", tone: "warning" },
-  verified: { label: "Terverifikasi", tone: "success" },
-  rejected: { label: "Ditolak", tone: "danger" },
-};
-
 export function PageHeader({ title, subtitle, action }: { title: string; subtitle?: string | undefined; action?: ReactNode }) {
   return (
     <div className="mb-5 flex items-start justify-between gap-3">

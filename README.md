@@ -731,3 +731,35 @@ cd <repository-name>
 npm i
 npm run dev
 ```
+
+## Implementasi Fase 1
+
+Alur orang tua/wali → profil anak → permintaan pendaftaran → tinjauan SSB → persetujuan dan penempatan tim → penugasan pelatih → jadwal wali menggunakan Supabase Auth, PostgreSQL, RPC, dan Row Level Security. Data organisasi/tim demo pada migrasi bersifat fiktif; profil anak, pendaftaran, penugasan pelatih, dan jadwal hanya menjadi data nyata setelah pengguna membuatnya pada backend yang dikonfigurasi.
+
+Status pendaftaran adalah `pending` (menunggu tinjauan), `needs_info` (perlu dilengkapi), `approved` (disetujui), dan `rejected` (ditolak). Manajemen SSB hanya dapat memutuskan permintaan `pending`; alasan wajib untuk meminta kelengkapan atau menolak. Status `needs_info` hanya dapat kembali menjadi `pending` melalui jawaban wali yang terhubung. Persetujuan mewajibkan tim dari SSB yang sama.
+
+Setelah migrasi diterapkan, kebijakan RLS membatasi profil anak dan relasi wali kepada wali yang terhubung, manajemen SSB yang meninjau, serta pelatih yang ditugaskan pada tim dengan keanggotaan aktif. Jadwal dibaca oleh manajemen/pelatih tim tersebut dan wali pemain aktif. Tulis langsung oleh klien pada data inti tidak diberikan; mutasi alur dilakukan melalui fungsi basis data yang memeriksa kewenangan. Organisasi demo hanya dapat diklaim oleh akun uji yang diberi `app_metadata.allow_demo_role_claims=true` melalui mekanisme administrasi tepercaya—jangan izinkan pengguna mengatur metadata ini sendiri. Penerapan migrasi dan otorisasi backend pada proyek yang dipakai aplikasi masih harus diverifikasi sebelum fitur dinyatakan aktif.
+
+Migrasi tambahan Fase 1 berada di `drizzle/migrations/0002_phase1_access.sql` dan `drizzle/migrations/0003_phase1_security_hardening.sql`. Migrasi harus diterapkan berurutan setelah `0000_migration.sql` dan `0001_migration.sql`. Migrasi 0003 membatasi pemanggilan helper, membatasi akses profil pemain pada pendaftaran yang ditolak, mencegah pendaftaran aktif ganda secara bersamaan, dan mengatur search path aman untuk fungsi `SECURITY DEFINER`. Migrasi ini belum terbukti diterapkan ke backend mana pun sampai statusnya diperiksa pada proyek tujuan. Pastikan variabel `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `VITE_SUPABASE_URL`, serta `VITE_SUPABASE_PUBLISHABLE_KEY` dikonfigurasi sebelum menjalankan alur backend. Tanpa backend tersebut, alur tidak diganti dengan data tiruan yang seolah-olah tersimpan.
+
+Sebelum menerapkan migrasi 0003 pada database yang sudah berisi data, periksa apakah data lama memiliki duplikasi yang akan menghalangi indeks unik:
+
+```sql
+select player_id, organization_id, count(*)
+from public.enrollment_requests
+where status in ('pending', 'needs_info', 'approved')
+group by player_id, organization_id
+having count(*) > 1;
+
+select team_id, player_id, count(*)
+from public.team_memberships
+where active
+group by team_id, player_id
+having count(*) > 1;
+```
+
+Kedua pemeriksaan tersebut hanya membaca data. Bersihkan duplikasi secara terkontrol sesuai catatan bisnis sebelum migrasi; jangan menghapus data produksi otomatis.
+
+Tes akses API berada di `supabase/tests/phase1_access.py` dan membutuhkan Python package `requests`. Tes ini membuat data melalui API dan tidak membersihkan data secara otomatis. Jalankan hanya pada proyek Supabase uji khusus yang disposable, dengan lima akun uji (`wali.a@test.local`, `wali.b@test.local`, `admin@test.local`, `coach@test.local`, dan `coach2@test.local`); akun admin uji harus diberi metadata demo melalui mekanisme administrasi tepercaya. Sebelum eksekusi, periksa bahwa URL browser dan server menunjuk ke proyek uji yang sama, pastikan keempat migrasi telah diterapkan berurutan, dan atur `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `TEST_PW`, `PHASE1_TEST_PROJECT_ID`, `PHASE1_ALLOW_WRITES=1`, `PHASE1_PROJECT_IS_DISPOSABLE=1`, serta `PHASE1_MIGRATIONS_CONFIRMED=1`. Pengujian membuat profil dan tim dengan akhiran ID-run unik, tetapi beberapa notifikasi/audit ikut tercatat; setelah pengujian, buang dan buat ulang proyek uji disposable melalui Supabase Dashboard untuk membersihkan seluruh fixture. Jangan menjalankan tes tulis ini pada produksi atau proyek bersama.
+
+Di luar Fase 1: pencatatan kehadiran dan evaluasi perkembangan, pembatalan persetujuan mandiri, pengelolaan pembayaran, kompetisi/pertandingan, analitik lanjutan, serta aplikasi native Android/iOS belum menjadi bagian alur backend ini. Layar kompetisi yang ada masih memakai data pengembangan fiktif.
